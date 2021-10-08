@@ -29,12 +29,14 @@
     "addressPrefix": "10.1.0.0/16",
     "subnetName": "Subnet",
     "subnetPrefix": "10.1.0.0/24",
-    "vhdStorageType": "Premium_LRS",
+    "vhdStorageType": "Standard_LRS",
     "publicIPAddressName": "jumpvmip",
     "publicIPAddressType": "static",
+    "publicIpSku":"Basic",
+    "networkSecurityGroupName": "Jumpvm-NSG",
     "vhdStorageContainerName": "vhds",
     "vmName": "jumpvm",
-    "vmSize": "Standard_D2S_V3",
+    "vmSize": "Standard_B2ms",
     "virtualNetworkName": "jumpvmVNet",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
@@ -49,21 +51,26 @@
     {
       "type": "Microsoft.Storage/storageAccounts",
       "name": "[variables('vhdStorageAccountName')]",
-      "apiVersion": "2019-06-01",
+      "apiVersion": "2021-04-01",
       "location": "[resourceGroup().location]",
       "tags": {
         "displayName": "StorageAccount"
       },
       "sku": {
-        "name": "[variables('vhdStorageType')]"
+        "name": "[variables('vhdStorageType')]",
+        "tier": "Standard"
       },
       "kind": "StorageV2"
     },
     {
-      "apiVersion": "2016-03-30",
+      "apiVersion": "2020-11-01",
       "type": "Microsoft.Network/publicIPAddresses",
       "name": "[variables('publicIPAddressName')]",
       "location": "[resourceGroup().location]",
+      "sku": {
+              "name":"[variables('publicIpSku')]"
+
+      },
       "tags": {
         "displayName": "PublicIPAddress"
       },
@@ -71,8 +78,32 @@
         "publicIPAllocationMethod": "[variables('publicIPAddressType')]"
       }
     },
+{
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2020-11-01",
+      "name": "[variables('networkSecurityGroupName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "default-allow-3389",
+            "properties": {
+              "priority": 1000,
+              "access": "Allow",
+              "direction": "Inbound",
+              "destinationPortRange": "3389",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+
     {
-      "apiVersion": "2016-03-30",
+      "apiVersion": "2020-11-01",
       "type": "Microsoft.Network/virtualNetworks",
       "name": "[variables('virtualNetworkName')]",
       "location": "[resourceGroup().location]",
@@ -89,14 +120,21 @@
           {
             "name": "[variables('subnetName')]",
             "properties": {
-              "addressPrefix": "[variables('subnetPrefix')]"
+              "addressPrefix": "[variables('subnetPrefix')]",
+              "networkSecurityGroup": {
+               "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+              }
             }
           }
         ]
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName'))]"
+      ]
     },
+    
     {
-      "apiVersion": "2016-03-30",
+      "apiVersion": "2020-11-01",
       "type": "Microsoft.Network/networkInterfaces",
       "name": "[variables('nicName')]",
       "location": "[resourceGroup().location]",
@@ -125,7 +163,7 @@
       }
     },
     {
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2021-03-01",
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[variables('vmName')]",
       "location": "[resourceGroup().location]",
@@ -198,11 +236,6 @@
       }
       ]
     }
-
-
-
-
-
   ],
   "outputs": {
     "JumpVM Public IP address": {
@@ -213,4 +246,3 @@
   }
 }
   
-
